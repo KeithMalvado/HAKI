@@ -11,13 +11,24 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 def load_models():
     srcnn = SRCNN().to(device)
     resnet = ResNetSR().to(device)
-    srcnn.load_state_dict(torch.load("model_srcnn.pt", map_location=device))
-    resnet.load_state_dict(torch.load("model_resnetsr.pt", map_location=device))
+
+    try:
+        srcnn.load_state_dict(torch.load("model_srcnn.pt", map_location=device))
+    except Exception as e:
+        st.warning("Tidak bisa memuat model SRCNN: {e}")
+
+    try:
+        state_dict = torch.load("model_resnetsr.pt", map_location=device)
+        resnet.load_state_dict(state_dict, strict=False)
+    except Exception as e:
+        st.warning("Tidak bisa memuat model ResNetSR: {e}")
+
     srcnn.eval()
     resnet.eval()
     return srcnn, resnet
 
 srcnn_model, resnet_model = load_models()
+
 transform = transforms.Compose([transforms.ToTensor()])
 
 def restore_image(model, image):
@@ -47,6 +58,11 @@ if uploaded:
     if st.button("🔧 Pulihkan Gambar"):
         model = srcnn_model if model_choice == "SRCNN" else resnet_model
         with st.spinner("🧠 Model sedang memulihkan citra... harap tunggu..."):
-            result = restore_image(model, img)
-        st.image(result, caption=f"Hasil Restorasi ({model_choice})", use_container_width=True)
-        st.success("✅ Proses restorasi selesai!")
+            try:
+                result = restore_image(model, img)
+                st.image(result, caption=f"Hasil Restorasi ({model_choice})", use_container_width=True)
+                st.success("Proses restorasi selesai!")
+            except Exception as e:
+                st.error("Terjadi kesalahan saat proses restorasi: {e}")
+else:
+    st.info("Silakan upload gambar terlebih dahulu.")
