@@ -1,37 +1,20 @@
+import torch
 import torch.nn as nn
-from torchvision.models import resnet50
 
-class SRCNN(nn.Module):
-    def __init__(self):
-        super(SRCNN, self).__init__()
-        self.layers = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=9, padding=4),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(64, 32, kernel_size=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(32, 3, kernel_size=5, padding=2)
-        )
-    def forward(self, x):
-        return self.layers(x)
+class DnCNN(nn.Module):
+    def __init__(self, channels=3, num_layers=17):
+        super(DnCNN, self).__init__()
+        layers = []
+        layers.append(nn.Conv2d(channels, 64, kernel_size=3, padding=1, bias=False))
+        layers.append(nn.ReLU(inplace=True))
+        for _ in range(num_layers - 2):
+            layers.append(nn.Conv2d(64, 64, kernel_size=3, padding=1, bias=False))
+            layers.append(nn.BatchNorm2d(64))
+            layers.append(nn.ReLU(inplace=True))
+        layers.append(nn.Conv2d(64, channels, kernel_size=3, padding=1, bias=False))
+        self.dncnn = nn.Sequential(*layers)
 
-class ResNetSR(nn.Module):
-    def __init__(self):
-        super(ResNetSR, self).__init__()
-        base = resnet50(weights=None)
-        self.encoder = nn.Sequential(*list(base.children())[:-2])
-        self.upsample = nn.Sequential(
-            nn.ConvTranspose2d(2048, 512, kernel_size=4, stride=2, padding=1),
-            nn.ReLU(True),
-            nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1),
-            nn.ReLU(True),
-            nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1),
-            nn.ReLU(True),
-            nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),
-            nn.ReLU(True),
-            nn.ConvTranspose2d(64, 3, kernel_size=4, stride=2, padding=1),
-            nn.Sigmoid()
-        )
     def forward(self, x):
-        f = self.encoder(x)
-        out = self.upsample(f)
-        return out
+        noise = self.dncnn(x)
+        out = x - noise
+        return torch.clamp(out, 0.0, 1.0)
