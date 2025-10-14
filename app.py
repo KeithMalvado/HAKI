@@ -1,59 +1,44 @@
-from flask import Flask, render_template, request
+import streamlit as st
+from PIL import Image
 import torch
 import torchvision.transforms as transforms
-from PIL import Image
-import os
-from model_def import SRCNN, ResNetSR  # import model yang sudah dibuat
-
-app = Flask(__name__)
-UPLOAD_FOLDER = 'static/uploads'
-RESULT_FOLDER = 'static/results'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(RESULT_FOLDER, exist_ok=True)
+import numpy as np
+from model_def import SRCNN, ResNetSR
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load model
-srcnn_model = SRCNN().to(device)
-srcnn_model.load_state_dict(torch.load('model_srcnn.pt', map_location=device))
-srcnn_model.eval()
+@st.cache_resource
+def load_models():
+    srcnn = SRCNN().to(device)
+    resnet = ResNetSR().to(device)
+    srcnn.load_state_dict(torch.load("model_srcnn.pt", map_location=device))
+    resnet.load_state_dict(torch.load("model_resnetsr.pt", map_location=device))
+    srcnn.eval(); resnet.eval()
+    return srcnn, resnet
 
-resnet_model = ResNetSR().to(device)
-resnet_model.load_state_dict(torch.load('model_resnetsr.pt', map_location=device))
-resnet_model.eval()
-
+srcnn_model, resnet_model = load_models()
 transform = transforms.Compose([transforms.ToTensor()])
 
-def restore_image(model, image_path):
-    img = Image.open(image_path).convert("RGB")
-    lr = transform(img).unsqueeze(0).to(device)
+def restore_image(model, image):
+    lr = transform(image).unsqueeze(0).to(device)
     with torch.no_grad():
-        sr = model(lr).cpu().squeeze().permute(1, 2, 0).numpy()
-    sr_img = Image.fromarray((sr * 255).astype('uint8'))
-    return sr_img
+        sr = model(lr).cpu().squeeze().permute(1,2,0).numpy()
+    sr = np.clip(sr, 0, 1)
+    return Image.fromarray((sr * 255).astype(np.uint8))
 
-@app.route('/', methods=['GET', 'POST'])
-def index():
-    if request.method == 'POST':
-        file = request.files['file']
-        model_type = request.form['model']
-        if file:
-            img_path = os.path.join(UPLOAD_FOLDER, file.filename)
-            file.save(img_path)
+st.title("🧠 Image Restoration using CNN and ResNet50")
+st.write("Upload an image (blurred or low-resolution), choose model, and view restored result below.")
 
-            if model_type == 'SRCNN':
-                sr_img = restore_image(srcnn_model, img_path)
-            else:
-                sr_img = restore_image(resnet_model, img_path)
+uploaded = st.file_uploader("Choose an image", type=["jpg", "png", "jpeg"])
+model_choice = st.selectbox("Choose model", ["SRCNN", "ResNetSR"])
 
-            result_path = os.path.join(RESULT_FOLDER, 'result_' + file.filename)
-            sr_img.save(result_path)
+if uploaded:
+    img = Image.open(uploaded).convert("RGB")
+    st.image(img, caption="Original Image", use_container_width=True)
 
-            return render_template('index.html',
-                                   uploaded_img=img_path,
-                                   result_img=result_path,
-                                   model_used=model_type)
-    return render_template('index.html')
-
-if __name__ == '__main__':
-    app.run(debug=True)
+    if st.button("Restore Image"):
+        model = srcnn_model if model_choice == "SRCNN" else resnet_model
+        with st.spinner("Restoring image... please wait"):
+            result = restore_image(model, img)
+        st.image(result, caption=f"Restored Image ({model_choice})", use_container_width=True)
+        st.success("Restoration completed!")
