@@ -60,13 +60,11 @@ class UNet(nn.Module):
             x = self.ups[idx](x)
         return self.final_conv(x)
 
+
 @st.cache_resource
 def load_model():
     model = UNet()
     model_path = os.path.join(os.getcwd(), "model_unet_denoise.pt")
-    if not os.path.exists(model_path):
-        st.error("Model file not found! Upload 'model_unet_denoise.pt' ke repo.")
-        st.stop()
     state_dict = torch.load(model_path, map_location=device)
     model.load_state_dict(state_dict, strict=False)
     model.to(device)
@@ -91,3 +89,4 @@ if uploaded_file is not None:
         output_tensor = model(input_tensor)
     output_image = transforms.ToPILImage()(output_tensor.squeeze().cpu())
     st.image(output_image, caption="Denoised Image", use_column_width=True)
+
