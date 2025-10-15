@@ -1,5 +1,5 @@
 torch
 torchvision
-streamlit
-pillow
+flask
 numpy
+pillow
