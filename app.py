@@ -1,5 +1,6 @@
 import streamlit as st
 import torch
+import torch.nn.functional as F
 import torch.nn as nn
 import torchvision.transforms as transforms
 from PIL import Image
@@ -50,16 +51,12 @@ class UNet(nn.Module):
         for down in self.downs:
             x = down(x)
             skip_connections.append(x)
-            x = nn.MaxPool2d(kernel_size=2, stride=2)(x)
+            x = F.max_pool2d(x, kernel_size=2, stride=2)
         x = self.bottleneck(x)
         skip_connections = skip_connections[::-1]
-        for idx in range(0, len(self.ups)):
-            x = nn.functional.interpolate(x, scale_factor=2, mode='bilinear', align_corners=True)
-            skip_connection = skip_connections[idx]
-            if x.shape != skip_connection.shape:
-                x = nn.functional.pad(x, [0, skip_connection.shape[3]-x.shape[3],
-                                          0, skip_connection.shape[2]-x.shape[2]])
-            x = torch.cat((skip_connection, x), dim=1)
+        for idx in range(len(self.ups)):
+            x = F.interpolate(x, size=skip_connections[idx].shape[2:], mode='bilinear', align_corners=True)
+            x = torch.cat((skip_connections[idx], x), dim=1)
             x = self.ups[idx](x)
         return self.final_conv(x)
 
@@ -88,3 +85,4 @@ if uploaded_file is not None:
         output_tensor = model(input_tensor)
     output_image = transforms.ToPILImage()(output_tensor.squeeze().cpu())
     st.image(output_image, caption="Denoised Image", use_column_width=True)
+
