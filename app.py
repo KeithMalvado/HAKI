@@ -16,9 +16,7 @@ def load_model():
 
 model = load_model()
 
-transform = transforms.Compose([
-    transforms.ToTensor()
-])
+transform = transforms.Compose([transforms.ToTensor()])
 
 def denoise_image(model, image):
     img_tensor = transform(image).unsqueeze(0).to(device)
@@ -47,4 +45,3 @@ if uploaded:
         with st.spinner("Model sedang memulihkan citra..."):
             result = denoise_image(model, img)
         st.image(result, caption="Citra Setelah Denoising", use_container_width=True)
-
