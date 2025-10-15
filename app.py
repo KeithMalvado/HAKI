@@ -3,14 +3,12 @@ from PIL import Image
 import torch
 import torchvision.transforms as transforms
 import numpy as np
-from model_def import UNet
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 @st.cache_resource
 def load_model():
-    model = UNet().to(device)
-    model.load_state_dict(torch.load("model_unet_denoise.pt", map_location=device))
+    model = torch.load("model_unet_dnoise.pt", map_location=device)
     model.eval()
     return model
 
