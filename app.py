@@ -10,7 +10,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 @st.cache_resource
 def load_model():
     model = UNet().to(device)
-    model.load_state_dict(torch.load("model_unet_dnoise.pt", map_location=device))
+    model.load_state_dict(torch.load("model_unet_denoise.pt", map_location=device))
     model.eval()
     return model
 
@@ -47,3 +47,4 @@ if uploaded:
         with st.spinner("Model sedang memulihkan citra..."):
             result = denoise_image(model, img)
         st.image(result, caption="Citra Setelah Denoising", use_container_width=True)
+
