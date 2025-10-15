@@ -41,20 +41,24 @@ model_choice = st.selectbox(
 )
 model = load_denoising_model(model_choice)
 
-uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
+uploaded_file = st.file_uploader("Upload image", type=["jpg", "jpeg", "png"])
 if uploaded_file is not None:
-    image = Image.open(uploaded_file).convert("L")  # grayscale
-    image = resize_image(image)
-    st.image(image, caption="Uploaded Image", use_column_width=True)
+    image = Image.open(uploaded_file)
 
-    img_array = np.array(image).astype("float32") / 255.0
-    img_array = np.expand_dims(img_array, axis=(0, -1))  # (1, H, W, 1)
+    # 🔧 Pastikan gambar dalam format RGB
+    image = image.convert("RGB")
 
-    with st.spinner("⏳ Denoising in progress..."):
-        try:
-            output = model.predict(img_array)
-            output = np.clip(output[0, :, :, 0], 0, 1)
-            output_image = Image.fromarray((output * 255).astype(np.uint8))
-            st.image(output_image, caption="Denoised Image", use_column_width=True)
-        except Exception as e:
-            st.error(f"❌ Error during prediction: {e}")
+    # 🔧 Resize ke 256x256 sesuai model
+    image = image.resize((256, 256))
+
+    # 🔧 Ubah ke numpy array dan normalisasi
+    img_array = np.array(image) / 255.0
+    img_array = np.expand_dims(img_array, axis=0)  # tambah dimensi batch
+
+    # Prediksi
+    denoised = model.predict(img_array)
+
+    # Konversi hasil ke gambar
+    denoised_image = Image.fromarray((denoised[0] * 255).astype(np.uint8))
+    st.image([image, denoised_image], caption=["Original", "Denoised"], width=300)
+
