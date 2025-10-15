@@ -1,32 +1,9 @@
 import streamlit as st
-from PIL import Image
 import torch
+import torch.nn as nn
 import torchvision.transforms as transforms
-import numpy as np
-from model_def import UNet
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-@st.cache_resource
-def load_model():
-    model = UNet().to(device)
-    model.load_state_dict(torch.load("model_unet_denoise.pt", map_location=device))
-    model.eval()
-    return model
-
-model = load_model()
-
-transform = transforms.Compose([transforms.ToTensor()])
-
-def denoise_image(model, image):
-    img_tensor = transform(image).unsqueeze(0).to(device)
-    with torch.no_grad():
-        output = model(img_tensor).cpu().squeeze(0)
-    output_img = output.permute(1, 2, 0).numpy()
-    output_img = np.clip(output_img, 0, 1)
-    return Image.fromarray((output_img * 255).astype(np.uint8))
+from PIL import Image
+import os
 
 st.set_page_config(page_title="Image Denoising", layout="centered")
 
@@ -38,13 +15,76 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-uploaded = st.file_uploader("Upload gambar", type=["jpg", "jpeg", "png"])
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-if uploaded:
-    img = Image.open(uploaded).convert("RGB")
-    st.image(img, caption="Citra Asli (Noisy)", use_container_width=True)
-    if st.button("Pulihkan Gambar"):
-        with st.spinner("Model sedang memulihkan citra..."):
-            result = denoise_image(model, img)
-        st.image(result, caption="Citra Setelah Denoising", use_container_width=True)
+class UNet(nn.Module):
+    def __init__(self, in_channels=3, out_channels=3, features=[64, 128, 256, 512]):
+        super(UNet, self).__init__()
+        self.downs = nn.ModuleList()
+        self.ups = nn.ModuleList()
+        for feature in features:
+            self.downs.append(nn.Sequential(
+                nn.Conv2d(in_channels, feature, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(feature, feature, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True)
+            ))
+            in_channels = feature
+        for feature in reversed(features):
+            self.ups.append(nn.Sequential(
+                nn.Conv2d(feature*2, feature, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(feature, feature, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True)
+            ))
+        self.bottleneck = nn.Sequential(
+            nn.Conv2d(features[-1], features[-1]*2, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(features[-1]*2, features[-1]*2, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True)
+        )
+        self.final_conv = nn.Conv2d(features[0], out_channels, kernel_size=1)
 
+    def forward(self, x):
+        skip_connections = []
+        for down in self.downs:
+            x = down(x)
+            skip_connections.append(x)
+            x = nn.MaxPool2d(kernel_size=2, stride=2)(x)
+        x = self.bottleneck(x)
+        skip_connections = skip_connections[::-1]
+        for idx in range(0, len(self.ups)):
+            x = nn.functional.interpolate(x, scale_factor=2, mode='bilinear', align_corners=True)
+            skip_connection = skip_connections[idx]
+            if x.shape != skip_connection.shape:
+                x = nn.functional.pad(x, [0, skip_connection.shape[3]-x.shape[3],
+                                          0, skip_connection.shape[2]-x.shape[2]])
+            x = torch.cat((skip_connection, x), dim=1)
+            x = self.ups[idx](x)
+        return self.final_conv(x)
+
+@st.cache_resource
+def load_model():
+    model = UNet()
+    model_path = os.path.join(os.getcwd(), "model_unet_denoise.pt")
+    if not os.path.exists(model_path):
+        st.error("Model file not found! Upload 'model_unet_denoise.pt' ke repo.")
+        st.stop()
+    state_dict = torch.load(model_path, map_location=device)
+    model.load_state_dict(state_dict, strict=False)
+    model.to(device)
+    model.eval()
+    return model
+
+model = load_model()
+
+uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
+if uploaded_file is not None:
+    image = Image.open(uploaded_file).convert("RGB")
+    st.image(image, caption="Uploaded Image", use_column_width=True)
+    transform = transforms.Compose([transforms.ToTensor()])
+    input_tensor = transform(image).unsqueeze(0).to(device)
+    with torch.no_grad():
+        output_tensor = model(input_tensor)
+    output_image = transforms.ToPILImage()(output_tensor.squeeze().cpu())
+    st.image(output_image, caption="Denoised Image", use_column_width=True)
