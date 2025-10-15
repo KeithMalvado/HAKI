@@ -1,20 +1,19 @@
 import torch
 import torch.nn as nn
 
-class DnCNN(nn.Module):
-    def __init__(self, channels=3, num_layers=17):
-        super(DnCNN, self).__init__()
-        layers = []
-        layers.append(nn.Conv2d(channels, 64, kernel_size=3, padding=1, bias=False))
-        layers.append(nn.ReLU(inplace=True))
-        for _ in range(num_layers - 2):
-            layers.append(nn.Conv2d(64, 64, kernel_size=3, padding=1, bias=False))
-            layers.append(nn.BatchNorm2d(64))
-            layers.append(nn.ReLU(inplace=True))
-        layers.append(nn.Conv2d(64, channels, kernel_size=3, padding=1, bias=False))
-        self.dncnn = nn.Sequential(*layers)
+class UNet(nn.Module):
+    def __init__(self, in_channels=3, out_channels=3):
+        super(UNet, self).__init__()
+        self.enc1 = nn.Sequential(nn.Conv2d(in_channels, 64, 3, padding=1), nn.ReLU())
+        self.enc2 = nn.Sequential(nn.Conv2d(64, 128, 3, padding=1), nn.ReLU())
+        self.pool = nn.MaxPool2d(2,2)
+        self.dec1 = nn.Sequential(nn.Conv2d(128, 64, 3, padding=1), nn.ReLU())
+        self.dec2 = nn.Conv2d(64, out_channels, 3, padding=1)
+        self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
 
     def forward(self, x):
-        noise = self.dncnn(x)
-        out = x - noise
+        e1 = self.enc1(x)
+        e2 = self.enc2(self.pool(e1))
+        d1 = self.up(self.dec1(e2))
+        out = self.dec2(d1 + e1)
         return torch.clamp(out, 0.0, 1.0)
