@@ -9,8 +9,9 @@ st.set_page_config(page_title="Image Denoising", layout="centered")
 
 st.markdown(
     """
-    <h2 style='text-align:center;'>🧼 Image Denoising using UNet (TensorFlow)</h2>
+    <h2 style='text-align:center;'>🧼 Restorasi Citra Berbasis U-Net</h2>
     <p style='text-align:center;'>Upload citra buram atau penuh noise, dan model akan memulihkannya secara otomatis.</p>
+    <p style='text-align:center;'>Model yang digunakan adalah <b>U-Net</b>, sebuah arsitektur deep learning yang dirancang untuk tugas segmentasi dan restorasi citra</p>
     """,
     unsafe_allow_html=True
 )
@@ -40,9 +41,27 @@ def load_denoising_model(model_name="denoising_unet_fine_tuned.h5"):
 #     ("best_denoising_model.h5", "denoising_unet_fine_tuned.h5")
 # )
 
+
+
 model = load_denoising_model()
 
 uploaded_file = st.file_uploader("Upload image", type=["jpg", "jpeg", "png"])
+
+# 🔹 Tambahan deskripsi di bawah upload
+st.markdown(
+    """
+    <small>
+    <p style='text-align:justify;'>
+    Silakan unggah gambar yang memiliki noise atau buram untuk diproses oleh sistem. 
+    Setelah diunggah, model <b>U-Net</b> akan secara otomatis melakukan proses <i>denoising</i> 
+    untuk memulihkan detail dan kejernihan citra.  
+    Pastikan ukuran gambar tidak terlalu besar agar proses berjalan lebih cepat.
+    </p>
+    </small>
+    """,
+    unsafe_allow_html=True
+)
+
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
 
@@ -62,6 +81,7 @@ if uploaded_file is not None:
     # Konversi hasil ke gambar
     denoised_image = Image.fromarray((denoised[0] * 255).astype(np.uint8))
     st.image([image, denoised_image], caption=["Original", "Denoised"], width=300)
+
 
 
 
