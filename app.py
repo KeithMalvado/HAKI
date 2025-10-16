@@ -82,11 +82,12 @@ if uploaded_file is not None:
     denoised_image = Image.fromarray((denoised[0] * 255).astype(np.uint8))
     # st.image([image, denoised_image], caption=["Original", "Denoised"], width=300, padding)
     st.markdown("<h4 style='text-align:center;'>Hasil Restorasi Citra</h4>", unsafe_allow_html=True)
-    col1, col2 = st.columns([1, 1], gap="large")  # atur jarak antar gambar
+    col1, col2 = st.columns([1, 1], gap="large")
     with col1:
-        st.image(image, caption="🖼️ Citra Asli", use_column_width=True)
+        st.image(image, caption="🖼️ Citra Asli", use_container_width=True)
     with col2:
-        st.image(denoised_image, caption="✨ Citra Hasil Denoising", use_column_width=True)
+        st.image(denoised_image, caption="✨ Citra Hasil Denoising", use_container_width=True)
+
 
 
 
