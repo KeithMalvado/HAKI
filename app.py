@@ -35,11 +35,11 @@ def load_denoising_model(model_name="best_denoising_model.h5"):
         st.stop()
 
 # Model selector (optional)
-model_choice = st.selectbox(
-    "Pilih model:",
-    ("best_denoising_model.h5", "denoising_unet_fine_tuned.h5")
-)
-model = load_denoising_model(model_choice)
+# model_choice = st.selectbox(
+#     "Pilih model:",
+#     ("best_denoising_model.h5", "denoising_unet_fine_tuned.h5")
+# )
+model = load_denoising_model(denoising_unet_fine_tuned.h5)
 
 uploaded_file = st.file_uploader("Upload image", type=["jpg", "jpeg", "png"])
 if uploaded_file is not None:
@@ -61,4 +61,5 @@ if uploaded_file is not None:
     # Konversi hasil ke gambar
     denoised_image = Image.fromarray((denoised[0] * 255).astype(np.uint8))
     st.image([image, denoised_image], caption=["Original", "Denoised"], width=300)
+
 
