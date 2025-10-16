@@ -22,7 +22,7 @@ def resize_image(image, base=16):
     return image.resize((new_w, new_h))
 
 @st.cache_resource(show_spinner=True)
-def load_denoising_model(model_name="best_denoising_model.h5"):
+def load_denoising_model(model_name="denoising_unet_fine_tuned.h5"):
     model_path = os.path.join(os.path.dirname(__file__), model_name)
     if not os.path.exists(model_path):
         st.error(f"Model file not found: {model_path}")
@@ -35,12 +35,12 @@ def load_denoising_model(model_name="best_denoising_model.h5"):
         st.stop()
 
 # Model selector (optional)
-model_choice = st.selectbox(
-    "Pilih model:",
-    ("best_denoising_model.h5", "denoising_unet_fine_tuned.h5")
-)
+# model_choice = st.selectbox(
+#     "Pilih model:",
+#     ("best_denoising_model.h5", "denoising_unet_fine_tuned.h5")
+# )
 
-model = load_denoising_model(model_choice)
+model = load_denoising_model()
 
 uploaded_file = st.file_uploader("Upload image", type=["jpg", "jpeg", "png"])
 if uploaded_file is not None:
@@ -62,6 +62,7 @@ if uploaded_file is not None:
     # Konversi hasil ke gambar
     denoised_image = Image.fromarray((denoised[0] * 255).astype(np.uint8))
     st.image([image, denoised_image], caption=["Original", "Denoised"], width=300)
+
 
 
 
